@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistem Penilaian SISC+</title>
+    <title>Sistem Penilaian SISC+ - Kementerian Pendidikan Malaysia</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM CDN -->
@@ -11,38 +11,113 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <!-- Supabase JS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js CDN Untuk Graf Radar Web -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Babel Compiler -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Style Khas Untuk Cetakan (Print CSS) -->
+    <!-- Style Khas Cetakan Cetak Rasmi KPM -->
     <style>
       @media print {
         .no-print { display: none !important; }
-        body { background: white !important; font-size: 11pt; }
-        .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; }
+        body { background: white !important; color: black !important; font-family: 'Arial', sans-serif; }
+        .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; }
+        @page { size: A4 landscape; margin: 10mm; }
       }
     </style>
   </head>
-  <body class="bg-slate-50">
+  <body class="bg-slate-100 font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useRef } = React;
 
-      // Konfigurasi Supabase Client
       const SUPABASE_URL = 'https://beyxrxnuuwegkvziglmg.supabase.co';
       const SUPABASE_KEY = 'sb_publishable_Ei-t0rPawbj3j8EpOOdAvQ_lwPz-oKO';
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       // ==========================================
-      // 1. KOMPONEN PORTAL ADMIN (LENGKAP SLIP INDIVIDU)
+      // KOMPONEN GRAF RADAR / SPIDER WEB
+      // ==========================================
+      function RadarChart({ dataScores }) {
+        const canvasRef = useRef(null);
+        const chartInstanceRef = useRef(null);
+
+        useEffect(() => {
+          if (!canvasRef.current) return;
+          const ctx = canvasRef.current.getContext('2d');
+
+          if (chartInstanceRef.current) {
+            chartInstanceRef.current.destroy();
+          }
+
+          chartInstanceRef.current = new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: [
+                'KOMPETENSI BIMBINGAN PROFESIONAL (25%)',
+                'KOMPETENSI INSTRUKSIONAL (20%)',
+                'KOMPETENSI PENGURUSAN STRATEGIK (20%)',
+                'KOMPETENSI ANALISIS DATA (15%)',
+                'KOMPETENSI INTERPERSONAL (10%)',
+                'EVIDENS PROFESIONAL (10%)'
+              ],
+              datasets: [{
+                label: 'MARKAH vs KOMPETENSI',
+                data: [
+                  dataScores.skor_bimbingan || 0,
+                  dataScores.skor_instruksional || 0,
+                  dataScores.skor_pemikiran_strategik || 0,
+                  dataScores.skor_analisis_data || 0,
+                  dataScores.skor_interpersonal || 0,
+                  dataScores.skor_evidens || 0
+                ],
+                backgroundColor: 'rgba(59, 130, 246, 0.25)',
+                borderColor: '#1d4ed8',
+                borderWidth: 2,
+                pointBackgroundColor: '#1e3a8a',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#1e3a8a'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                r: {
+                  angleLines: { color: '#cbd5e1' },
+                  grid: { color: '#cbd5e1' },
+                  pointLabels: { font: { size: 8, weight: 'bold' }, color: '#1e293b' },
+                  suggestedMin: 0,
+                  suggestedMax: 25
+                }
+              },
+              plugins: {
+                legend: { display: false }
+              }
+            }
+          });
+
+          return () => {
+            if (chartInstanceRef.current) chartInstanceRef.current.destroy();
+          };
+        }, [dataScores]);
+
+        return (
+          <div className="w-full h-64 relative flex items-center justify-center">
+            <canvas ref={canvasRef}></canvas>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // 1. KOMPONEN PORTAL ADMIN (SLIP RASMI KPM)
       // ==========================================
       function AdminDashboard() {
-        const [activeTab, setActiveTab] = useState('calon');
         const [calonList, setCalonList] = useState([]);
         const [resultsList, setResultsList] = useState([]);
-        const [searchTerm, setSearchTerm] = useState('');
-        const [selectedCalonDetail, setSelectedCalonDetail] = useState(null);
+        const [selectedCalon, setSelectedCalon] = useState(null);
 
         useEffect(() => {
           fetchCalon();
@@ -59,278 +134,197 @@
           if (data) setResultsList(data);
         };
 
-        const filteredCalon = calonList.filter(c => 
-          c.nama_penuh?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.no_kp?.includes(searchTerm) ||
-          c.zon_temuduga?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        // Cari Keputusan bagi Calon Terpilih
         const getResultForCandidate = (no_kp) => {
           return resultsList.find(r => String(r.no_kp_calon).trim() === String(no_kp).trim());
         };
 
+        const currentRes = selectedCalon ? getResultForCandidate(selectedCalon.no_kp) : null;
+
+        const scoresMap = currentRes ? {
+          skor_bimbingan: ((currentRes.skor_bimbingan || 0) / 5) * 25,
+          skor_instruksional: ((currentRes.skor_instruksional || 0) / 5) * 20,
+          skor_pemikiran_strategik: ((currentRes.skor_pemikiran_strategik || 0) / 5) * 20,
+          skor_analisis_data: ((currentRes.skor_analisis_data || 0) / 5) * 15,
+          skor_interpersonal: ((currentRes.skor_interpersonal || 0) / 5) * 10,
+          skor_evidens: ((currentRes.skor_evidens || 0) / 5) * 10
+        } : { skor_bimbingan: 0, skor_instruksional: 0, skor_pemikiran_strategik: 0, skor_analisis_data: 0, skor_interpersonal: 0, skor_evidens: 0 };
+
+        const totalMarkah = (
+          scoresMap.skor_bimbingan +
+          scoresMap.skor_instruksional +
+          scoresMap.skor_pemikiran_strategik +
+          scoresMap.skor_analisis_data +
+          scoresMap.skor_interpersonal +
+          scoresMap.skor_evidens
+        ).toFixed(1);
+
         return (
           <div className="p-6 max-w-7xl mx-auto">
-            <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center no-print">
+            <div className="bg-slate-900 text-white p-4 rounded-lg shadow mb-6 flex justify-between items-center no-print">
               <div>
-                <h1 className="text-2xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
-                <p className="text-slate-400 text-xs mt-1">Sistem Penilaian & Rumusan SISC+</p>
+                <h1 className="text-xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
+                <p className="text-slate-400 text-xs">Rumusan Skor Individu Temu Duga SISC+</p>
               </div>
-              <span className="bg-blue-600 text-xs font-semibold px-3 py-1 rounded-full uppercase">Portal Admin</span>
-            </div>
-
-            {/* Tab Navigasi Admin */}
-            <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2 no-print">
-              <button onClick={() => { setActiveTab('calon'); setSelectedCalonDetail(null); }} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                Senarai Calon Berdaftar ({calonList.length})
-              </button>
-              <button onClick={() => { setActiveTab('keputusan'); setSelectedCalonDetail(null); }} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'keputusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                Pemantauan Keputusan Live ({resultsList.length})
-              </button>
-              <button onClick={() => setActiveTab('rumusan')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'rumusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                📋 Rumusan Slip Individu Peserta
+              <button onClick={() => window.print()} disabled={!selectedCalon} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded text-xs disabled:opacity-50">
+                🖨️ Cetak Borang Rumusan KPM
               </button>
             </div>
 
-            {/* TAB 1: SENARAI CALON */}
-            {activeTab === 'calon' && (
-              <div className="bg-white p-6 rounded border shadow-sm">
-                <div className="flex justify-between items-center mb-4 pb-2 border-b no-print">
-                  <h2 className="font-bold text-slate-800">Pangkalan Data Calon SISC+</h2>
-                  <input 
-                    type="text" 
-                    placeholder="Cari Nama / No KP / Zon..." 
-                    className="p-2 border rounded text-xs w-64"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b text-slate-700 uppercase">
-                        <th className="p-2.5">No. KP</th>
-                        <th className="p-2.5">Nama Penuh</th>
-                        <th className="p-2.5">Zon</th>
-                        <th className="p-2.5">Sesi</th>
-                        <th className="p-2.5">Bilik</th>
-                        <th className="p-2.5">SME Subjek</th>
-                        <th className="p-2.5 text-center">Tindakan</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCalon.map((c) => {
-                        const res = getResultForCandidate(c.no_kp);
-                        return (
-                          <tr key={c.no_kp} className="border-b hover:bg-slate-50">
-                            <td className="p-2.5 font-mono">{c.no_kp}</td>
-                            <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
-                            <td className="p-2.5">{c.zon_temuduga}</td>
-                            <td className="p-2.5">{c.sesi || '-'}</td>
-                            <td className="p-2.5">{c.bilik_temuduga}</td>
-                            <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
-                            <td className="p-2.5 text-center">
-                              <button 
-                                onClick={() => { setSelectedCalonDetail(c); setActiveTab('rumusan'); }} 
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded text-xs"
-                              >
-                                Lihat Slip
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {/* Menu Carian Calon */}
+            <div className="bg-white p-4 rounded border mb-6 shadow-sm no-print">
+              <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Pilih Calon Peserta SISC+</label>
+              <select 
+                className="w-full p-2.5 border rounded text-xs font-mono bg-slate-50"
+                value={selectedCalon?.no_kp || ''}
+                onChange={(e) => {
+                  const found = calonList.find(c => c.no_kp === e.target.value);
+                  setSelectedCalon(found || null);
+                }}
+              >
+                <option value="">-- Pilih Calon Dari Senarai 220 Peserta --</option>
+                {calonList.map(c => (
+                  <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh} ({c.zon_temuduga})</option>
+                ))}
+              </select>
+            </div>
 
-            {/* TAB 2: KEPUTUSAN LIVE */}
-            {activeTab === 'keputusan' && (
-              <div className="bg-white p-6 rounded border shadow-sm">
-                <div className="flex justify-between items-center border-b pb-2 mb-4 no-print">
-                  <h2 className="font-bold text-slate-800">Keputusan Penilaian Live Dari Panel</h2>
-                  <button onClick={() => window.print()} className="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold">
-                    🖨️ Cetak Senarai Keputusan
-                  </button>
+            {/* PAPARAN BORANG RUMUSAN RASMI KPM 100% SAMA SEPERTI LAMPIRAN */}
+            {selectedCalon ? (
+              <div className="bg-white p-8 border rounded-lg shadow-sm print-area text-slate-900">
+                
+                {/* Header Jata Negara & Kementerian */}
+                <div className="text-center mb-6">
+                  <div className="flex justify-center mb-2">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/26/Coat_of_arms_of_Malaysia.svg" alt="Jata Negara" className="h-16" />
+                  </div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider">Kementerian Pendidikan</h3>
+                  <h4 className="text-xs font-semibold text-slate-600 uppercase">Bahagian Profesionalisme Guru</h4>
+                  <h2 className="text-sm font-extrabold uppercase mt-2 tracking-wide border-b-2 border-slate-900 pb-1 inline-block">
+                    BORANG RUMUSAN SKOR INDIVIDU BAGI SESI TEMU DUGA SISC+<br />KEMENTERIAN PENDIDIKAN
+                  </h2>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-800 text-white uppercase">
-                        <th className="p-2.5">Nama Panel</th>
-                        <th className="p-2.5">No. KP Calon</th>
-                        <th className="p-2.5">Zon & Bilik</th>
-                        <th className="p-2.5 text-center">Jumlah Markah (%)</th>
-                        <th className="p-2.5 text-center">Status Perakuan</th>
-                        <th className="p-2.5">Ulasan Panel</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {resultsList.map((r) => (
-                        <tr key={r.id} className="border-b hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-800">{r.nama_panel || 'N/A'}</td>
-                          <td className="p-2.5 font-mono font-bold">{r.no_kp_calon}</td>
-                          <td className="p-2.5">{r.zon} ({r.bilik})</td>
-                          <td className="p-2.5 text-center font-bold text-blue-700 text-sm">{r.jumlah_markah}%</td>
-                          <td className="p-2.5 text-center">
-                            {r.status_lulus ? (
-                              <span className="bg-green-100 text-green-800 font-bold px-2.5 py-1 rounded-full border border-green-300">DIPERAKUKAN</span>
-                            ) : (
-                              <span className="bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-full border border-red-300">TIDAK DIPERAKUKAN</span>
-                            )}
-                          </td>
-                          <td className="p-2.5 text-slate-600">{r.ulasan_panel || '-'}</td>
+
+                {/* Jadual Profil Calon */}
+                <table className="w-full text-xs border-collapse border border-slate-400 mb-6 font-semibold">
+                  <tbody>
+                    <tr className="border-b border-slate-400">
+                      <td className="p-2 bg-slate-100 border-r border-slate-400 w-1/4">NAMA CALON</td>
+                      <td className="p-2 border-r border-slate-400 uppercase font-bold" colSpan="3">{selectedCalon.nama_penuh}</td>
+                    </tr>
+                    <tr className="border-b border-slate-400">
+                      <td className="p-2 bg-slate-100 border-r border-slate-400">NO KAD PENGENALAN CALON</td>
+                      <td className="p-2 border-r border-slate-400 font-mono font-bold" colSpan="3">{selectedCalon.no_kp}</td>
+                    </tr>
+                    <tr className="border-b border-slate-400">
+                      <td className="p-2 bg-slate-100 border-r border-slate-400">PPD</td>
+                      <td className="p-2 border-r border-slate-400 uppercase" colSpan="3">{selectedCalon.ppd || '-'}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 bg-slate-100 border-r border-slate-400">MP BM/BI/MT/SC</td>
+                      <td className="p-2 uppercase font-bold" colSpan="3">{selectedCalon.sme_subjek}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Bahagian Utama: Jadual Skor Left & Graf Web Radar Right */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  
+                  {/* Jadual Markah Left */}
+                  <div>
+                    <table className="w-full text-xs border-collapse border border-slate-400">
+                      <thead>
+                        <tr className="bg-slate-100 border-b border-slate-400 font-bold text-center">
+                          <th className="p-2 border-r border-slate-400 text-left">KOMPETENSI</th>
+                          <th className="p-2 border-r border-slate-400 w-20">MARKAH</th>
+                          <th className="p-2 w-24">KOD SOALAN</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="font-semibold">
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">KOMPETENSI BIMBINGAN PROFESIONAL (25%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_bimbingan.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">P2</td>
+                        </tr>
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">KOMPETENSI INSTRUKSIONAL (20%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_instruksional.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">K4</td>
+                        </tr>
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">KOMPETENSI PENGURUSAN STRATEGIK (20%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_pemikiran_strategik.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">PS1</td>
+                        </tr>
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">KOMPETENSI ANALISIS DATA (15%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_analisis_data.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">C2</td>
+                        </tr>
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">KOMPETENSI INTERPERSONAL (10%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_interpersonal.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">S3</td>
+                        </tr>
+                        <tr className="border-b border-slate-400 bg-amber-50">
+                          <td className="p-2 border-r border-slate-400">EVIDENS PROFESIONAL (10%)</td>
+                          <td className="p-2 border-r border-slate-400 text-center font-bold">{scoresMap.skor_evidens.toFixed(1)}</td>
+                          <td className="p-2 text-center font-mono">-</td>
+                        </tr>
+                        <tr className="bg-slate-200 font-extrabold">
+                          <td className="p-2 border-r border-slate-400">JUMLAH MARKAH</td>
+                          <td className="p-2 border-r border-slate-400 text-center text-sm text-blue-900">{totalMarkah}</td>
+                          <td className="p-2 text-center">100.0</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Ulasan Penemuduga */}
+                    <div className="mt-4 border border-slate-400 p-3 rounded min-h-[100px] text-xs">
+                      <p className="font-bold underline mb-1">Ulasan Penemuduga:</p>
+                      <p className="italic text-slate-700">{currentRes?.ulasan_panel || '(Tiada ulasan dimasukkan oleh panel)'}</p>
+                    </div>
+                  </div>
+
+                  {/* Graf Radar Web Right */}
+                  <div className="border border-slate-400 p-4 rounded flex flex-col items-center justify-center bg-slate-50">
+                    <h4 className="text-xs font-bold text-center mb-2 uppercase tracking-wide">MARKAH vs KOMPETENSI</h4>
+                    <RadarChart dataScores={scoresMap} />
+                  </div>
                 </div>
+
+                {/* RUANG 3 TANDATANGAN (Disediakan Oleh & Disahkan Oleh) */}
+                <div className="grid grid-cols-3 gap-6 pt-6 text-xs font-semibold">
+                  <div>
+                    <p className="mb-12">Disediakan oleh,</p>
+                    <p className="border-b border-slate-400 w-full mb-1"></p>
+                    <p>Nama : <span className="font-bold">{currentRes?.nama_panel || ''}</span></p>
+                    <p>Tarikh : </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-12">Disediakan oleh,</p>
+                    <p className="border-b border-slate-400 w-full mb-1"></p>
+                    <p>Nama : </p>
+                    <p>Tarikh : </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-12">Disahkan oleh,</p>
+                    <p className="border-b border-slate-400 w-full mb-1"></p>
+                    <p>Nama : </p>
+                    <p>Tarikh : </p>
+                  </div>
+                </div>
+
+                {/* Penafian Nota Kaki Rasmi */}
+                <div className="mt-8 text-[9pt] text-slate-500 italic border-t pt-2 text-center">
+                  Dokumen ini adalah cetakan rasmi Sistem Penilaian SISC+ Kementerian Pendidikan Malaysia.
+                </div>
+
               </div>
-            )}
-
-            {/* TAB 3: RUMUSAN SLIP INDIVIDU PESERTA */}
-            {activeTab === 'rumusan' && (
-              <div className="bg-white p-6 rounded border shadow-sm">
-                {/* Carian Peserta Untuk Paparan Slip */}
-                <div className="mb-6 p-4 bg-slate-100 rounded border no-print flex flex-col md:flex-row gap-4 items-center justify-between">
-                  <div className="w-full md:w-1/2">
-                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Pilih Peserta / Calon SISC+</label>
-                    <select 
-                      className="w-full p-2 border rounded text-xs font-mono"
-                      value={selectedCalonDetail?.no_kp || ''}
-                      onChange={(e) => {
-                        const found = calonList.find(c => c.no_kp === e.target.value);
-                        setSelectedCalonDetail(found || null);
-                      }}
-                    >
-                      <option value="">-- Pilih Peserta Untuk Lihat Slip --</option>
-                      {calonList.map(c => (
-                        <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh} ({c.zon_temuduga})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedCalonDetail && (
-                    <button onClick={() => window.print()} className="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-xs transition-all flex items-center gap-1">
-                      🖨️ Cetak Slip Markah Individu
-                    </button>
-                  )}
-                </div>
-
-                {/* SLIP PENILAIAN RASMI INDIVIDU PESERTA */}
-                {selectedCalonDetail ? (
-                  (() => {
-                    const res = getResultForCandidate(selectedCalonDetail.no_kp);
-                    return (
-                      <div className="p-6 border rounded-lg bg-white print-area">
-                        {/* Header Slip */}
-                        <div className="text-center border-b-2 border-slate-900 pb-4 mb-6">
-                          <h2 className="text-lg font-extrabold uppercase text-slate-900 tracking-wide">SLIP RUMUSAN PENILAIAN TEMU DUGA JAWATAN SISC+</h2>
-                          <p className="text-xs text-slate-600 font-semibold">Kementerian Pendidikan Malaysia</p>
-                        </div>
-
-                        {/* Profil Peserta */}
-                        <div className="bg-slate-50 p-4 rounded border mb-6 text-xs grid grid-cols-2 gap-3 text-slate-800">
-                          <p><strong>Nama Penuh Peserta:</strong> {selectedCalonDetail.nama_penuh}</p>
-                          <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono font-bold">{selectedCalonDetail.no_kp}</span></p>
-                          <p><strong>Zon Temu Duga:</strong> {selectedCalonDetail.zon_temuduga}</p>
-                          <p><strong>Sesi & Bilik:</strong> {selectedCalonDetail.sesi || '-'} ({selectedCalonDetail.bilik_temuduga})</p>
-                          <p colSpan="2"><strong>Subject Matter Expert (SME):</strong> <span className="bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-bold">{selectedCalonDetail.sme_subjek}</span></p>
-                        </div>
-
-                        {/* Pecahan Skor Domain */}
-                        {res ? (
-                          <div>
-                            <h3 className="font-bold text-xs uppercase mb-2 text-slate-800 border-b pb-1">Pecahan Markah Domain Rubrik Penilaian</h3>
-                            <table className="w-full text-left text-xs border-collapse border mb-6">
-                              <thead>
-                                <tr className="bg-slate-800 text-white uppercase">
-                                  <th className="p-2 border">Domain Penilaian</th>
-                                  <th className="p-2 border text-center">Wajaran (%)</th>
-                                  <th className="p-2 border text-center">Skor Panel (1-5)</th>
-                                  <th className="p-2 border text-center">Markah Sumbangan (%)</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="p-2 border font-medium">1. Bimbingan Profesional</td>
-                                  <td className="p-2 border text-center">25%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_bimbingan || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_bimbingan || 0) / 5) * 25).toFixed(2)}%</td>
-                                </tr>
-                                <tr>
-                                  <td className="p-2 border font-medium">2. Competency Instruksional</td>
-                                  <td className="p-2 border text-center">20%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_instruksional || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_instruksional || 0) / 5) * 20).toFixed(2)}%</td>
-                                </tr>
-                                <tr>
-                                  <td className="p-2 border font-medium">3. Pemikiran Strategik</td>
-                                  <td className="p-2 border text-center">20%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_pemikiran_strategik || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_pemikiran_strategik || 0) / 5) * 20).toFixed(2)}%</td>
-                                </tr>
-                                <tr>
-                                  <td className="p-2 border font-medium">4. Analisis Data</td>
-                                  <td className="p-2 border text-center">15%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_analisis_data || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_analisis_data || 0) / 5) * 15).toFixed(2)}%</td>
-                                </tr>
-                                <tr>
-                                  <td className="p-2 border font-medium">5. Interpersonal</td>
-                                  <td className="p-2 border text-center">10%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_interpersonal || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_interpersonal || 0) / 5) * 10).toFixed(2)}%</td>
-                                </tr>
-                                <tr>
-                                  <td className="p-2 border font-medium">6. Evidens Profesional</td>
-                                  <td className="p-2 border text-center">10%</td>
-                                  <td className="p-2 border text-center font-bold">{res.skor_evidens || 0}</td>
-                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_evidens || 0) / 5) * 10).toFixed(2)}%</td>
-                                </tr>
-                              </tbody>
-                            </table>
-
-                            {/* Keputusan Keseluruhan */}
-                            <div className="grid grid-cols-2 gap-4 border p-4 rounded bg-slate-50 mb-6 text-xs">
-                              <div>
-                                <p className="font-bold text-slate-700">Jumlah Markah Keseluruhan:</p>
-                                <p className="text-3xl font-extrabold text-blue-700 mt-1">{res.jumlah_markah}%</p>
-                              </div>
-                              <div>
-                                <p className="font-bold text-slate-700">Keputusan Perakuan Panel:</p>
-                                <div className="mt-2">
-                                  {res.status_lulus ? (
-                                    <span className="bg-green-100 text-green-900 border border-green-400 text-sm font-extrabold px-3 py-1 rounded">DIPERAKUKAN</span>
-                                  ) : (
-                                    <span className="bg-red-100 text-red-900 border border-red-400 text-sm font-extrabold px-3 py-1 rounded">TIDAK DIPERAKUKAN</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Ulasan & Nama Panel */}
-                            <div className="border p-4 rounded text-xs space-y-2 bg-white">
-                              <p><strong>Ulasan Penemuduga:</strong> {res.ulasan_panel || 'Tiada ulasan dimasukkan.'}</p>
-                              <p><strong>Nama Panel Penemuduga:</strong> <span className="font-bold text-slate-900">{res.nama_panel || 'N/A'}</span></p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="p-6 bg-amber-50 border border-amber-200 rounded text-center text-amber-800 text-xs font-semibold">
-                            ⚠️ Peserta ini belum dinilai oleh panel penemuduga. Markah akan dipaparkan di sini secara automatik selepas penilaian dihantar.
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <div className="p-8 text-center text-slate-500 text-xs">
-                    Sila pilih nama peserta daripada menu dropdown di atas untuk memaparkan slip markah penilaian lengkap.
-                  </div>
-                )}
+            ) : (
+              <div className="p-12 text-center bg-white rounded border shadow-sm text-slate-500 text-xs">
+                Sila pilih mana-mana calon peserta daripada senarai dropdown di atas untuk memaparkan **Borang Rumusan Skor Rasmi KPM (termasuk Graf Radar Web & Ruang Tandatangan)**.
               </div>
             )}
           </div>
@@ -426,16 +420,16 @@
           if (error) {
             setMessage({ type: 'error', text: 'Gagal menyimpan: ' + error.message });
           } else {
-            setMessage({ type: 'success', text: 'Penilaian calon berjaya disimpan secara rasmi ke dalam pangkalan data!' });
+            setMessage({ type: 'success', text: 'Penilaian calon berjaya disimpan secara rasmi!' });
           }
           setLoading(false);
         };
 
         return (
-          <div className="p-6 max-w-4xl mx-auto print-area">
-            <div className="bg-blue-900 text-white p-6 rounded-lg shadow mb-6">
+          <div className="p-6 max-w-4xl mx-auto">
+            <div className="bg-blue-900 text-white p-6 rounded-lg shadow mb-6 no-print">
               <h1 className="text-xl font-bold">Borang Penilaian Panel Penemuduga</h1>
-              <p className="text-blue-200 text-xs mt-1">Jawatan School Improvement Specialist Coaches Plus (SISC+)</p>
+              <p className="text-blue-200 text-xs mt-1">Jawatan SISC+</p>
             </div>
 
             {message.text && (
@@ -448,11 +442,7 @@
             <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm no-print">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">1. Pilih Zon</label>
-                <select 
-                  className="w-full p-2 border rounded text-xs" 
-                  value={selectedZon} 
-                  onChange={(e) => { setSelectedZon(e.target.value); setSelectedSesi(''); setSelectedCalon(null); }}
-                >
+                <select className="w-full p-2 border rounded text-xs" value={selectedZon} onChange={(e) => { setSelectedZon(e.target.value); setSelectedSesi(''); setSelectedCalon(null); }}>
                   <option value="">-- Pilih Zon --</option>
                   <option value="UTARA">UTARA</option>
                   <option value="TIMUR">TIMUR</option>
@@ -465,12 +455,7 @@
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">2. Pilih Sesi</label>
-                <select 
-                  className="w-full p-2 border rounded text-xs disabled:bg-slate-100" 
-                  value={selectedSesi} 
-                  disabled={!selectedZon}
-                  onChange={(e) => { setSelectedSesi(e.target.value); setSelectedCalon(null); }}
-                >
+                <select className="w-full p-2 border rounded text-xs disabled:bg-slate-100" value={selectedSesi} disabled={!selectedZon} onChange={(e) => { setSelectedSesi(e.target.value); setSelectedCalon(null); }}>
                   <option value="">-- Pilih Sesi --</option>
                   {availableSesi.map(sesi => (
                     <option key={sesi} value={sesi}>{sesi}</option>
@@ -480,12 +465,7 @@
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">3. Pilih Calon</label>
-                <select 
-                  className="w-full p-2 border rounded text-xs font-mono disabled:bg-slate-100" 
-                  value={selectedKP} 
-                  disabled={!selectedSesi}
-                  onChange={(e) => handleSelectKP(e.target.value)}
-                >
+                <select className="w-full p-2 border rounded text-xs font-mono disabled:bg-slate-100" value={selectedKP} disabled={!selectedSesi} onChange={(e) => handleSelectKP(e.target.value)}>
                   <option value="">-- Pilih Calon Dalam Sesi --</option>
                   {filteredCalon.map(c => (
                     <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh}</option>
@@ -494,34 +474,24 @@
               </div>
             </div>
 
-            {/* Kad Maklumat Terkunci Calon */}
-            {selectedCalon && (
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-xs text-slate-800 shadow-sm">
-                <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1 uppercase">Maklumat Calon Ditaksir</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <p><strong>Nama Penuh Calon:</strong> {selectedCalon.nama_penuh}</p>
-                  <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono font-bold">{selectedCalon.no_kp}</span></p>
-                  <p><strong>Zon & Sesi Temu Duga:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.sesi})</p>
-                  <p><strong>Bilik Temu Duga:</strong> {selectedCalon.bilik_temuduga}</p>
-                  <p className="md:col-span-2"><strong>Subject Matter Expert (SME):</strong> <span className="bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-bold">{selectedCalon.sme_subjek}</span></p>
-                </div>
-              </div>
-            )}
-
-            {/* Borang Penilaian Rubrik */}
             {selectedCalon && (
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-xs text-slate-800 shadow-sm">
+                  <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1 uppercase">Maklumat Calon Ditaksir</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <p><strong>Nama Penuh Calon:</strong> {selectedCalon.nama_penuh}</p>
+                    <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono font-bold">{selectedCalon.no_kp}</span></p>
+                    <p><strong>Zon & Sesi Temu Duga:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.sesi})</p>
+                    <p><strong>PPD:</strong> {selectedCalon.ppd || '-'}</p>
+                  </div>
+                </div>
+
                 {RUBRIK.map((r) => (
                   <div key={r.id} className="bg-white p-4 rounded border shadow-sm">
                     <h4 className="font-bold text-xs mb-2 text-slate-800">{r.nama}</h4>
                     <div className="flex gap-2">
                       {[1, 2, 3, 4, 5].map((s) => (
-                        <button 
-                          key={s} 
-                          type="button" 
-                          onClick={() => setScores({ ...scores, [r.id]: s })} 
-                          className={`flex-1 py-2 rounded text-xs font-bold border transition-all ${scores[r.id] === s ? 'bg-blue-600 text-white' : 'bg-slate-50 hover:bg-slate-100'}`}
-                        >
+                        <button key={s} type="button" onClick={() => setScores({ ...scores, [r.id]: s })} className={`flex-1 py-2 rounded text-xs font-bold border transition-all ${scores[r.id] === s ? 'bg-blue-600 text-white' : 'bg-slate-50 hover:bg-slate-100'}`}>
                           Skor {s}
                         </button>
                       ))}
@@ -531,21 +501,12 @@
 
                 <div className="bg-white p-4 rounded border shadow-sm">
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Ulasan Penemuduga</label>
-                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan panel..."></textarea>
+                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan..."></textarea>
                 </div>
 
                 <div className="bg-white p-4 rounded border shadow-sm border-l-4 border-l-blue-600">
-                  <label className="block text-xs font-bold uppercase text-blue-900 mb-1">
-                    Nama Panel Penemuduga <span className="text-red-600">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="Masukkan Nama Penuh Anda (Panel Penemuduga)" 
-                    className="w-full p-2 border rounded text-xs font-bold text-slate-800"
-                    value={namaPanel}
-                    onChange={(e) => setNamaPanel(e.target.value)}
-                  />
+                  <label className="block text-xs font-bold uppercase text-blue-900 mb-1">Nama Panel Penemuduga <span className="text-red-600">*</span></label>
+                  <input type="text" required placeholder="Masukkan Nama Penuh Anda" className="w-full p-2 border rounded text-xs font-bold text-slate-800" value={namaPanel} onChange={(e) => setNamaPanel(e.target.value)} />
                 </div>
 
                 <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center shadow">
@@ -553,24 +514,9 @@
                     <p className="text-xs text-slate-400 font-bold">Jumlah Markah Dikira</p>
                     <div className="text-2xl font-extrabold text-blue-400">{calculateTotal()}%</div>
                   </div>
-                  
-                  <div className="flex gap-2 no-print">
-                    <button 
-                      type="button" 
-                      onClick={() => window.print()} 
-                      className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2.5 rounded text-xs transition-all flex items-center gap-1"
-                    >
-                      🖨️ Cetak / Simpan PDF
-                    </button>
-
-                    <button 
-                      type="submit" 
-                      disabled={loading} 
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded text-xs transition-all"
-                    >
-                      {loading ? 'Menyimpan...' : 'Simpan & Hantar Markah'}
-                    </button>
-                  </div>
+                  <button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded text-xs transition-all">
+                    {loading ? 'Menyimpan...' : 'Simpan & Hantar Markah'}
+                  </button>
                 </div>
               </form>
             )}
@@ -582,24 +528,18 @@
       // 3. UTAMA APP
       // ==========================================
       function App() {
-        const [view, setView] = useState('panel');
+        const [view, setView] = useState('admin');
 
         return (
           <div>
             <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6 shadow no-print">
-              <span className="font-bold text-sm tracking-wide">SISTEM PENILAIAN SISC+</span>
+              <span className="font-bold text-sm tracking-wide">SISTEM PENILAIAN SISC+ KPM</span>
               <div className="flex gap-2">
-                <button 
-                  onClick={() => setView('panel')} 
-                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'panel' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}
-                >
-                  Borang Panel
+                <button onClick={() => setView('admin')} className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'admin' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>
+                  Portal Admin & Borang Rumusan KPM
                 </button>
-                <button 
-                  onClick={() => setView('admin')} 
-                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'admin' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}
-                >
-                  Portal Admin
+                <button onClick={() => setView('panel')} className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'panel' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>
+                  Borang Penilaian Panel
                 </button>
               </div>
             </div>
