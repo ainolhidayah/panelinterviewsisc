@@ -20,193 +20,27 @@
     <script type="text/babel">
       const { useState, useEffect } = React;
 
-      // Konfigurasi Supabase Client
-      const SUPABASE_URL = 'https://YOUR_SUPABASE_URL.supabase.co';
-      const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+      // Konfigurasi Supabase Client dengan Kunci API Rasmi Anda
+      const SUPABASE_URL = 'https://beyxrxnuuwegkvziglmg.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_Ei-t0rPawbj3j8EpOOdAvQ_lwPz-oKO';
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // --- KOMPONEN ADMIN DASHBOARD ---
-      function AdminDashboard() {
-        const [activeTab, setActiveTab] = useState('calon');
-        const [calonList, setCalonList] = useState([]);
-        const [newCalon, setNewCalon] = useState({
-          no_kp: '', nama_penuh: '', zon_temuduga: 'Zon Tengah', bilik_temuduga: 'Bilik 1', sme_subjek: ''
-        });
-        const [panelList, setPanelList] = useState([]);
-        const [newPanel, setNewPanel] = useState({ email: '', password: '', nama_panel: '' });
-        const [resultsList, setResultsList] = useState([]);
-        const [loading, setLoading] = useState(false);
-        const [message, setMessage] = useState({ type: '', text: '' });
-
-        useEffect(() => {
-          fetchCalon();
-          fetchPanel();
-          fetchKeputusan();
-        }, []);
-
-        const fetchCalon = async () => {
-          const { data } = await supabase.from('calon').select('*').order('created_at', { ascending: false });
-          if (data) setCalonList(data);
-        };
-
-        const handleAddCalon = async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          const { error } = await supabase.from('calon').insert([newCalon]);
-          if (error) {
-            setMessage({ type: 'error', text: 'Gagal: ' + error.message });
-          } else {
-            setMessage({ type: 'success', text: 'Calon berjaya didaftarkan!' });
-            setNewCalon({ no_kp: '', nama_penuh: '', zon_temuduga: 'Zon Tengah', bilik_temuduga: 'Bilik 1', sme_subjek: '' });
-            fetchCalon();
-          }
-          setLoading(false);
-        };
-
-        const handleDeleteCalon = async (no_kp) => {
-          if (window.confirm(`Padam calon No. KP: ${no_kp}?`)) {
-            await supabase.from('calon').delete().eq('no_kp', no_kp);
-            fetchCalon();
-          }
-        };
-
-        const fetchPanel = async () => {
-          const { data } = await supabase.from('profiles').select('*').eq('role', 'panel');
-          if (data) setPanelList(data);
-        };
-
-        const handleRegisterPanel = async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: newPanel.email, password: newPanel.password
-          });
-
-          if (authError) {
-            setMessage({ type: 'error', text: 'Gagal: ' + authError.message });
-          } else if (authData?.user) {
-            await supabase.from('profiles').insert([{ id: authData.user.id, nama_panel: newPanel.nama_panel, email: newPanel.email, role: 'panel' }]);
-            setMessage({ type: 'success', text: 'Panel berjaya didaftarkan!' });
-            setNewPanel({ email: '', password: '', nama_panel: '' });
-            fetchPanel();
-          }
-          setLoading(false);
-        };
-
-        const fetchKeputusan = async () => {
-          const { data } = await supabase.from('penilaian_skor').select(`*, calon (nama_penuh, sme_subjek), profiles (nama_panel)`).order('created_at', { ascending: false });
-          if (data) setResultsList(data);
-        };
-
-        return (
-          <div className="p-6 max-w-7xl mx-auto">
-            <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
-                <p className="text-slate-400 text-xs mt-1">Sistem Penilaian SISC+</p>
-              </div>
-              <span className="bg-blue-600 text-xs font-semibold px-3 py-1 rounded-full">ADMIN PORTAL</span>
-            </div>
-
-            {message.text && (
-              <div className={`p-4 mb-6 rounded text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                {message.text}
-              </div>
-            )}
-
-            <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2">
-              <button onClick={() => setActiveTab('calon')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                Pengurusan Calon
-              </button>
-              <button onClick={() => setActiveTab('panel')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'panel' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                Pendaftaran Panel
-              </button>
-              <button onClick={() => setActiveTab('keputusan')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'keputusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
-                Pemantauan Keputusan
-              </button>
-            </div>
-
-            {activeTab === 'calon' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded border shadow-sm">
-                  <h2 className="font-bold border-b pb-2 mb-4">Daftar Calon Baru</h2>
-                  <form onSubmit={handleAddCalon} className="space-y-3">
-                    <input type="text" required placeholder="No. KP Calon" className="w-full p-2 border rounded text-xs" value={newCalon.no_kp} onChange={(e) => setNewCalon({ ...newCalon, no_kp: e.target.value })} />
-                    <input type="text" required placeholder="Nama Penuh Calon" className="w-full p-2 border rounded text-xs" value={newCalon.nama_penuh} onChange={(e) => setNewCalon({ ...newCalon, nama_penuh: e.target.value })} />
-                    <select className="w-full p-2 border rounded text-xs" value={newCalon.zon_temuduga} onChange={(e) => setNewCalon({ ...newCalon, zon_temuduga: e.target.value })}>
-                      <option value="Zon Tengah">Zon Tengah</option>
-                      <option value="Zon Utara">Zon Utara</option>
-                      <option value="Zon Selatan">Zon Selatan</option>
-                      <option value="Zon Sabah">Zon Sabah</option>
-                      <option value="Zon Sarawak">Zon Sarawak</option>
-                    </select>
-                    <input type="text" required placeholder="Bilik Temuduga" className="w-full p-2 border rounded text-xs" value={newCalon.bilik_temuduga} onChange={(e) => setNewCalon({ ...newCalon, bilik_temuduga: e.target.value })} />
-                    <input type="text" required placeholder="SME Subjek" className="w-full p-2 border rounded text-xs" value={newCalon.sme_subjek} onChange={(e) => setNewCalon({ ...newCalon, sme_subjek: e.target.value })} />
-                    <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-2 rounded text-xs">Simpan Calon</button>
-                  </form>
-                </div>
-                <div className="lg:col-span-2 bg-white p-6 rounded border shadow-sm">
-                  <h2 className="font-bold border-b pb-2 mb-4">Senarai Calon Berdaftar ({calonList.length})</h2>
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead><tr className="bg-slate-100 border-b"><th className="p-2">No. KP</th><th className="p-2">Nama</th><th className="p-2">Zon/Bilik</th><th className="p-2">SME</th><th className="p-2 text-center">Tindakan</th></tr></thead>
-                    <tbody>
-                      {calonList.map((c) => (
-                        <tr key={c.no_kp} className="border-b"><td className="p-2 font-mono">{c.no_kp}</td><td className="p-2 font-bold">{c.nama_penuh}</td><td className="p-2">{c.zon_temuduga} ({c.bilik_temuduga})</td><td className="p-2">{c.sme_subjek}</td><td className="p-2 text-center"><button onClick={() => handleDeleteCalon(c.no_kp)} className="text-red-600 font-bold">Padam</button></td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'panel' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded border shadow-sm">
-                  <h2 className="font-bold border-b pb-2 mb-4">Daftar Panel Baru</h2>
-                  <form onSubmit={handleRegisterPanel} className="space-y-3">
-                    <input type="text" required placeholder="Nama Panel" className="w-full p-2 border rounded text-xs" value={newPanel.nama_panel} onChange={(e) => setNewPanel({ ...newPanel, nama_panel: e.target.value })} />
-                    <input type="email" required placeholder="E-mel Panel" className="w-full p-2 border rounded text-xs" value={newPanel.email} onChange={(e) => setNewPanel({ ...newPanel, email: e.target.value })} />
-                    <input type="password" required placeholder="Kata Laluan" className="w-full p-2 border rounded text-xs" value={newPanel.password} onChange={(e) => setNewPanel({ ...newPanel, password: e.target.value })} />
-                    <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white font-bold py-2 rounded text-xs">Daftar Panel</button>
-                  </form>
-                </div>
-                <div className="lg:col-span-2 bg-white p-6 rounded border shadow-sm">
-                  <h2 className="font-bold border-b pb-2 mb-4">Senarai Panel ({panelList.length})</h2>
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead><tr className="bg-slate-100 border-b"><th className="p-2">Nama Panel</th><th className="p-2">E-mel</th><th className="p-2">Peranan</th></tr></thead>
-                    <tbody>
-                      {panelList.map((p) => (<tr key={p.id} className="border-b"><td className="p-2 font-bold">{p.nama_panel}</td><td className="p-2">{p.email}</td><td className="p-2"><span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs">{p.role}</span></td></tr>))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'keputusan' && (
-              <div className="bg-white p-6 rounded border shadow-sm">
-                <h2 className="font-bold mb-4 border-b pb-2">Pemantauan Keputusan Live</h2>
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead><tr className="bg-slate-800 text-white"><th className="p-2">No. KP</th><th className="p-2">Nama Calon</th><th className="p-2">Zon & Bilik</th><th className="p-2">Penemuduga</th><th className="p-2 text-center">Markah (%)</th><th className="p-2 text-center">Status</th></tr></thead>
-                  <tbody>
-                    {resultsList.map((r) => (
-                      <tr key={r.id} className="border-b"><td className="p-2 font-mono">{r.no_kp_calon}</td><td className="p-2 font-bold">{r.calon?.nama_penuh || 'N/A'}</td><td className="p-2">{r.zon} ({r.bilik})</td><td className="p-2">{r.profiles?.nama_panel || 'Panel'}</td><td className="p-2 text-center font-bold text-blue-600">{r.jumlah_markah}%</td><td className="p-2 text-center">{r.status_lulus ? <span className="bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded">DIPERAKUKAN</span> : <span className="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded">GAGAL</span>}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      // --- KOMPONEN BORANG PANEL ---
+      // --- KOMPONEN BORANG PANEL (ZON -> SESI -> CALON) ---
       function PanelForm() {
-        const [zon, setZon] = useState('');
-        const [bilik, setBilik] = useState('');
-        const [calonList, setCalonList] = useState([]);
+        const [allCandidates, setAllCandidates] = useState([]);
+        const [selectedZon, setSelectedZon] = useState('');
+        const [selectedSesi, setSelectedSesi] = useState('');
         const [selectedKP, setSelectedKP] = useState('');
         const [selectedCalon, setSelectedCalon] = useState(null);
-        const [scores, setScores] = useState({ skor_bimbingan: 0, skor_instruksional: 0, skor_pemikiran_strategik: 0, skor_analisis_data: 0, skor_interpersonal: 0, skor_evidens: 0 });
+
+        const [scores, setScores] = useState({ 
+          skor_bimbingan: 0, 
+          skor_instruksional: 0, 
+          skor_pemikiran_strategik: 0, 
+          skor_analisis_data: 0, 
+          skor_interpersonal: 0, 
+          skor_evidens: 0 
+        });
         const [ulasan, setUlasan] = useState('');
         const [loading, setLoading] = useState(false);
         const [message, setMessage] = useState({ type: '', text: '' });
@@ -220,18 +54,33 @@
           { id: 'skor_evidens', nama: '6. Evidens Profesional (10%)', wajaran: 10 }
         ];
 
+        // Tarik 220 data calon dari Supabase
         useEffect(() => {
-          if (zon && bilik) fetchCalon();
-        }, [zon, bilik]);
+          fetchAllCalon();
+        }, []);
 
-        const fetchCalon = async () => {
-          const { data } = await supabase.from('calon').select('*').eq('zon_temuduga', zon).eq('bilik_temuduga', bilik);
-          if (data) setCalonList(data);
+        const fetchAllCalon = async () => {
+          const { data, error } = await supabase.from('calon').select('*');
+          if (!error && data) setAllCandidates(data);
         };
+
+        // Filter Senarai Sesi berdasarkan Zon yang dipilih
+        const availableSesi = [...new Set(
+          allCandidates
+            .filter(c => c.zon_temuduga === selectedZon)
+            .map(c => c.sesi)
+            .filter(Boolean)
+        )].sort();
+
+        // Filter Senarai Calon berdasarkan Zon DAN Sesi yang dipilih
+        const filteredCalon = allCandidates.filter(
+          c => c.zon_temuduga === selectedZon && c.sesi === selectedSesi
+        );
 
         const handleSelectKP = (kp) => {
           setSelectedKP(kp);
-          setSelectedCalon(calonList.find(c => c.no_kp === kp) || null);
+          const calonFound = filteredCalon.find(c => c.no_kp === kp);
+          setSelectedCalon(calonFound || null);
         };
 
         const calculateTotal = () => {
@@ -243,20 +92,29 @@
         const handleSubmit = async (e) => {
           e.preventDefault();
           if (!selectedCalon) return alert('Pilih calon terlebih dahulu.');
+          if (Object.values(scores).some(val => val === 0)) return alert('Sila isi kesemua 6 skor domain penilaian.');
+
           setLoading(true);
           const total = calculateTotal();
           const isPassed = total >= 75 && scores.skor_bimbingan >= 3 && scores.skor_instruksional >= 3 && scores.skor_pemikiran_strategik >= 3 && scores.skor_analisis_data >= 3;
 
           const payload = {
-            no_kp_calon: selectedCalon.no_kp, zon, bilik, ...scores, jumlah_markah: parseFloat(total), status_lulus: isPassed, ulasan_panel: ulasan
+            no_kp_calon: selectedCalon.no_kp,
+            zon: selectedCalon.zon_temuduga,
+            bilik: selectedCalon.bilik_temuduga,
+            ...scores,
+            jumlah_markah: parseFloat(total),
+            status_lulus: isPassed,
+            ulasan_panel: ulasan
           };
 
           const { error } = await supabase.from('penilaian_skor').insert([payload]);
           if (error) {
-            setMessage({ type: 'error', text: 'Gagal: ' + error.message });
+            setMessage({ type: 'error', text: 'Gagal menyimpan: ' + error.message });
           } else {
-            setMessage({ type: 'success', text: 'Penilaian berjaya disimpan!' });
+            setMessage({ type: 'success', text: 'Penilaian calon berjaya disimpan secara rasmi!' });
             setScores({ skor_bimbingan: 0, skor_instruksional: 0, skor_pemikiran_strategik: 0, skor_analisis_data: 0, skor_interpersonal: 0, skor_evidens: 0 });
+            setUlasan('');
             setSelectedCalon(null);
             setSelectedKP('');
           }
@@ -271,57 +129,89 @@
             </div>
 
             {message.text && (
-              <div className={`p-4 mb-6 rounded text-sm ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              <div className={`p-4 mb-6 rounded text-sm font-medium ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                 {message.text}
               </div>
             )}
 
-            <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Pemilihan Berperingkat: Zon -> Sesi -> Calon */}
+            <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm">
               <div>
-                <label className="block text-xs font-bold uppercase mb-1">1. Pilih Zon</label>
-                <select className="w-full p-2 border rounded text-xs" value={zon} onChange={(e) => setZon(e.target.value)}>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">1. Pilih Zon</label>
+                <select 
+                  className="w-full p-2 border rounded text-xs" 
+                  value={selectedZon} 
+                  onChange={(e) => { setSelectedZon(e.target.value); setSelectedSesi(''); setSelectedCalon(null); }}
+                >
                   <option value="">-- Pilih Zon --</option>
-                  <option value="Zon Tengah">Zon Tengah</option>
-                  <option value="Zon Utara">Zon Utara</option>
-                  <option value="Zon Selatan">Zon Selatan</option>
-                  <option value="Zon Sabah">Zon Sabah</option>
-                  <option value="Zon Sarawak">Zon Sarawak</option>
+                  <option value="UTARA">UTARA</option>
+                  <option value="TIMUR">TIMUR</option>
+                  <option value="TENGAH">TENGAH</option>
+                  <option value="SELATAN">SELATAN</option>
+                  <option value="SABAH">SABAH</option>
+                  <option value="SARAWAK">SARAWAK</option>
                 </select>
               </div>
+
               <div>
-                <label className="block text-xs font-bold uppercase mb-1">2. Pilih Bilik</label>
-                <input type="text" placeholder="Contoh: Bilik 1" className="w-full p-2 border rounded text-xs" value={bilik} onChange={(e) => setBilik(e.target.value)} />
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">2. Pilih Sesi</label>
+                <select 
+                  className="w-full p-2 border rounded text-xs disabled:bg-slate-100" 
+                  value={selectedSesi} 
+                  disabled={!selectedZon}
+                  onChange={(e) => { setSelectedSesi(e.target.value); setSelectedCalon(null); }}
+                >
+                  <option value="">-- Pilih Sesi --</option>
+                  {availableSesi.map(sesi => (
+                    <option key={sesi} value={sesi}>{sesi}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">3. Pilih Calon</label>
+                <select 
+                  className="w-full p-2 border rounded text-xs font-mono disabled:bg-slate-100" 
+                  value={selectedKP} 
+                  disabled={!selectedSesi}
+                  onChange={(e) => handleSelectKP(e.target.value)}
+                >
+                  <option value="">-- Pilih Calon Dalam Sesi --</option>
+                  {filteredCalon.map(c => (
+                    <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {zon && bilik && (
-              <div className="bg-white p-6 rounded border mb-6">
-                <label className="block text-xs font-bold uppercase mb-1">3. Pilih No. KP Calon</label>
-                <select className="w-full p-2 border rounded text-xs font-mono" value={selectedKP} onChange={(e) => handleSelectKP(e.target.value)}>
-                  <option value="">-- Pilih No. KP Calon --</option>
-                  {calonList.map(c => <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh}</option>)}
-                </select>
-              </div>
-            )}
-
+            {/* Kad Maklumat Terkunci Calon */}
             {selectedCalon && (
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-xs text-slate-800">
-                <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1">Maklumat Calon (Read-Only)</h3>
-                <p><strong>Nama Penuh:</strong> {selectedCalon.nama_penuh}</p>
-                <p><strong>No. KP:</strong> {selectedCalon.no_kp}</p>
-                <p><strong>Zon & Bilik:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.bilik_temuduga})</p>
-                <p><strong>SME Subjek:</strong> <span className="bg-blue-200 px-2 py-0.5 rounded font-bold">{selectedCalon.sme_subjek}</span></p>
+              <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-xs text-slate-800 shadow-sm">
+                <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1">Maklumat Terkunci Calon (Read-Only)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <p><strong>Nama Penuh:</strong> {selectedCalon.nama_penuh}</p>
+                  <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono">{selectedCalon.no_kp}</span></p>
+                  <p><strong>Zon & Sesi:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.sesi})</p>
+                  <p><strong>Bilik Temu Duga:</strong> {selectedCalon.bilik_temuduga}</p>
+                  <p className="md:col-span-2"><strong>Subject Matter Expert (SME):</strong> <span className="bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-bold">{selectedCalon.sme_subjek}</span></p>
+                </div>
               </div>
             )}
 
+            {/* Borang Penilaian Rubrik */}
             {selectedCalon && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {RUBRIK.map((r) => (
-                  <div key={r.id} className="bg-white p-4 rounded border">
-                    <h4 className="font-bold text-xs mb-2">{r.nama}</h4>
+                  <div key={r.id} className="bg-white p-4 rounded border shadow-sm">
+                    <h4 className="font-bold text-xs mb-2 text-slate-800">{r.nama}</h4>
                     <div className="flex gap-2">
                       {[1, 2, 3, 4, 5].map((s) => (
-                        <button key={s} type="button" onClick={() => setScores({ ...scores, [r.id]: s })} className={`flex-1 py-2 rounded text-xs font-bold border ${scores[r.id] === s ? 'bg-blue-600 text-white' : 'bg-slate-50'}`}>
+                        <button 
+                          key={s} 
+                          type="button" 
+                          onClick={() => setScores({ ...scores, [r.id]: s })} 
+                          className={`flex-1 py-2 rounded text-xs font-bold border transition-all ${scores[r.id] === s ? 'bg-blue-600 text-white' : 'bg-slate-50 hover:bg-slate-100'}`}
+                        >
                           Skor {s}
                         </button>
                       ))}
@@ -329,17 +219,19 @@
                   </div>
                 ))}
 
-                <div className="bg-white p-4 rounded border">
-                  <label className="block text-xs font-bold uppercase mb-1">Ulasan Panel</label>
-                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)}></textarea>
+                <div className="bg-white p-4 rounded border shadow-sm">
+                  <label className="block text-xs font-bold uppercase mb-1">Ulasan Penemuduga</label>
+                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan ulasan panel jika ada..."></textarea>
                 </div>
 
-                <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center">
+                <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center shadow">
                   <div>
                     <p className="text-xs text-slate-400 font-bold">Jumlah Markah</p>
                     <div className="text-2xl font-extrabold text-blue-400">{calculateTotal()}%</div>
                   </div>
-                  <button type="submit" disabled={loading} className="bg-emerald-600 text-white font-bold px-4 py-2 rounded text-xs">Simpan & Hantar Markah</button>
+                  <button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded text-xs transition-all">
+                    {loading ? 'Menyimpan...' : 'Simpan & Hantar Markah'}
+                  </button>
                 </div>
               </form>
             )}
@@ -347,19 +239,13 @@
         );
       }
 
-      // --- UTAMA APP ---
       function App() {
-        const [view, setView] = useState('admin');
         return (
           <div>
-            <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6">
-              <span className="font-bold text-sm">SISTEM PENILAIAN SISC+</span>
-              <div className="flex gap-2">
-                <button onClick={() => setView('admin')} className={`px-3 py-1 rounded text-xs font-semibold ${view === 'admin' ? 'bg-blue-600' : 'bg-slate-700'}`}>Portal Admin</button>
-                <button onClick={() => setView('panel')} className={`px-3 py-1 rounded text-xs font-semibold ${view === 'panel' ? 'bg-blue-600' : 'bg-slate-700'}`}>Borang Panel</button>
-              </div>
+            <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6 shadow">
+              <span className="font-bold text-sm tracking-wide">SISTEM PENILAIAN SISC+</span>
             </div>
-            {view === 'admin' ? <AdminDashboard /> : <PanelForm />}
+            <PanelForm />
           </div>
         );
       }
