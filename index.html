@@ -20,12 +20,153 @@
     <script type="text/babel">
       const { useState, useEffect } = React;
 
-      // Konfigurasi Supabase Client
+      // Konfigurasi Supabase Client dengan Kunci API Rasmi Anda
       const SUPABASE_URL = 'https://beyxrxnuuwegkvziglmg.supabase.co';
       const SUPABASE_KEY = 'sb_publishable_Ei-t0rPawbj3j8EpOOdAvQ_lwPz-oKO';
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // --- KOMPONEN BORANG PANEL (ZON -> SESI -> CALON) ---
+      // ==========================================
+      // 1. KOMPONEN PORTAL ADMIN
+      // ==========================================
+      function AdminDashboard() {
+        const [activeTab, setActiveTab] = useState('calon');
+        const [calonList, setCalonList] = useState([]);
+        const [resultsList, setResultsList] = useState([]);
+        const [searchTerm, setSearchTerm] = useState('');
+        const [loading, setLoading] = useState(false);
+
+        useEffect(() => {
+          fetchCalon();
+          fetchKeputusan();
+        }, []);
+
+        const fetchCalon = async () => {
+          const { data } = await supabase.from('calon').select('*').limit(1000);
+          if (data) setCalonList(data);
+        };
+
+        const fetchKeputusan = async () => {
+          const { data } = await supabase.from('penilaian_skor').select('*').order('created_at', { ascending: false });
+          if (data) setResultsList(data);
+        };
+
+        const filteredCalon = calonList.filter(c => 
+          c.nama_penuh?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.no_kp?.includes(searchTerm) ||
+          c.zon_temuduga?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return (
+          <div className="p-6 max-w-7xl mx-auto">
+            <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
+                <p className="text-slate-400 text-xs mt-1">Sistem Penilaian & Pemantauan SISC+</p>
+              </div>
+              <span className="bg-blue-600 text-xs font-semibold px-3 py-1 rounded-full uppercase">Portal Admin</span>
+            </div>
+
+            {/* Tab Navigasi Admin */}
+            <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2">
+              <button onClick={() => setActiveTab('calon')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
+                Senarai Calon Berdaftar ({calonList.length})
+              </button>
+              <button onClick={() => setActiveTab('keputusan')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'keputusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
+                Pemantauan Keputusan Live ({resultsList.length})
+              </button>
+            </div>
+
+            {activeTab === 'calon' && (
+              <div className="bg-white p-6 rounded border shadow-sm">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                  <h2 className="font-bold text-slate-800">Pangkalan Data Calon SISC+</h2>
+                  <input 
+                    type="text" 
+                    placeholder="Cari Nama / No KP / Zon..." 
+                    className="p-2 border rounded text-xs w-64"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b text-slate-700 uppercase">
+                        <th className="p-2.5">No. KP</th>
+                        <th className="p-2.5">Nama Penuh</th>
+                        <th className="p-2.5">Zon</th>
+                        <th className="p-2.5">Sesi</th>
+                        <th className="p-2.5">Bilik</th>
+                        <th className="p-2.5">SME Subjek</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCalon.length === 0 ? (
+                        <tr><td colSpan="6" className="text-center p-4 text-slate-500">Tiada rekod dijumpai.</td></tr>
+                      ) : (
+                        filteredCalon.map((c) => (
+                          <tr key={c.no_kp} className="border-b hover:bg-slate-50">
+                            <td className="p-2.5 font-mono">{c.no_kp}</td>
+                            <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
+                            <td className="p-2.5">{c.zon_temuduga}</td>
+                            <td className="p-2.5">{c.sesi || '-'}</td>
+                            <td className="p-2.5">{c.bilik_temuduga}</td>
+                            <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'keputusan' && (
+              <div className="bg-white p-6 rounded border shadow-sm">
+                <h2 className="font-bold border-b pb-2 mb-4 text-slate-800">Keputusan Penilaian Live Dari Panel</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-800 text-white uppercase">
+                        <th className="p-2.5">No. KP Calon</th>
+                        <th className="p-2.5">Zon & Bilik</th>
+                        <th className="p-2.5 text-center">Jumlah Markah (%)</th>
+                        <th className="p-2.5 text-center">Status Perakuan</th>
+                        <th className="p-2.5">Ulasan Panel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resultsList.length === 0 ? (
+                        <tr><td colSpan="5" className="text-center p-4 text-slate-500">Belum ada penilaian yang dihantar oleh panel.</td></tr>
+                      ) : (
+                        resultsList.map((r) => (
+                          <tr key={r.id} className="border-b hover:bg-slate-50">
+                            <td className="p-2.5 font-mono font-bold">{r.no_kp_calon}</td>
+                            <td className="p-2.5">{r.zon} ({r.bilik})</td>
+                            <td className="p-2.5 text-center font-bold text-blue-700 text-sm">{r.jumlah_markah}%</td>
+                            <td className="p-2.5 text-center">
+                              {r.status_lulus ? (
+                                <span className="bg-green-100 text-green-800 font-bold px-2.5 py-1 rounded-full border border-green-300">DIPERAKUKAN</span>
+                              ) : (
+                                <span className="bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-full border border-red-300">TIDAK DIPERAKUKAN</span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-slate-600">{r.ulasan_panel || '-'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ==========================================
+      // 2. KOMPONEN BORANG PANEL
+      // ==========================================
       function PanelForm() {
         const [allCandidates, setAllCandidates] = useState([]);
         const [selectedZon, setSelectedZon] = useState('');
@@ -54,35 +195,29 @@
           { id: 'skor_evidens', nama: '6. Evidens Profesional (10%)', wajaran: 10 }
         ];
 
-        // Tarik SELURUH data calon dari Supabase (Limit 1000)
         useEffect(() => {
           fetchAllCalon();
         }, []);
 
         const fetchAllCalon = async () => {
-          const { data, error } = await supabase
-            .from('calon')
-            .select('*')
-            .limit(1000); // Menarik seluruh 220+ calon tanpa terpotong limit default
+          const { data, error } = await supabase.from('calon').select('*').limit(1000);
           if (!error && data) setAllCandidates(data);
         };
 
-        // Filter Senarai Sesi berdasarkan Zon yang dipilih
         const availableSesi = [...new Set(
           allCandidates
-            .filter(c => String(c.zon_temuduga).toUpperCase() === String(selectedZon).toUpperCase())
+            .filter(c => String(c.zon_temuduga).trim().toUpperCase() === String(selectedZon).trim().toUpperCase())
             .map(c => c.sesi)
             .filter(Boolean)
         )].sort();
 
-        // Filter Senarai Calon berdasarkan Zon DAN Sesi yang dipilih
         const filteredCalon = allCandidates.filter(
-          c => String(c.zon_temuduga).toUpperCase() === String(selectedZon).toUpperCase() && c.sesi === selectedSesi
+          c => String(c.zon_temuduga).trim().toUpperCase() === String(selectedZon).trim().toUpperCase() && String(c.sesi).trim() === String(selectedSesi).trim()
         );
 
         const handleSelectKP = (kp) => {
           setSelectedKP(kp);
-          const calonFound = filteredCalon.find(c => String(c.no_kp) === String(kp));
+          const calonFound = filteredCalon.find(c => String(c.no_kp).trim() === String(kp).trim());
           setSelectedCalon(calonFound || null);
         };
 
@@ -242,13 +377,35 @@
         );
       }
 
+      // ==========================================
+      // 3. UTAMA APP (MEMPUNYAI TOGGLE ADMIN / PANEL)
+      // ==========================================
       function App() {
+        const [view, setView] = useState('panel'); // Default: 'panel' | Boleh tukar ke 'admin'
+
         return (
           <div>
+            {/* Bar Navigasi Atas */}
             <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6 shadow">
               <span className="font-bold text-sm tracking-wide">SISTEM PENILAIAN SISC+</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setView('panel')} 
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'panel' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}
+                >
+                  Borang Panel
+                </button>
+                <button 
+                  onClick={() => setView('admin')} 
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${view === 'admin' ? 'bg-blue-600 text-white shadow' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}
+                >
+                  Portal Admin
+                </button>
+              </div>
             </div>
-            <PanelForm />
+
+            {/* Paparan Mengikut Mod Selected */}
+            {view === 'admin' ? <AdminDashboard /> : <PanelForm />}
           </div>
         );
       }
