@@ -19,7 +19,7 @@
       @media print {
         .no-print { display: none !important; }
         body { background: white !important; font-size: 11pt; }
-        .print-area { border: none !important; shadow: none !important; padding: 0 !important; }
+        .print-area { border: none !important; box-shadow: none !important; padding: 0 !important; }
       }
     </style>
   </head>
@@ -35,13 +35,14 @@
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       // ==========================================
-      // 1. KOMPONEN PORTAL ADMIN
+      // 1. KOMPONEN PORTAL ADMIN (LENGKAP SLIP INDIVIDU)
       // ==========================================
       function AdminDashboard() {
         const [activeTab, setActiveTab] = useState('calon');
         const [calonList, setCalonList] = useState([]);
         const [resultsList, setResultsList] = useState([]);
         const [searchTerm, setSearchTerm] = useState('');
+        const [selectedCalonDetail, setSelectedCalonDetail] = useState(null);
 
         useEffect(() => {
           fetchCalon();
@@ -64,25 +65,35 @@
           c.zon_temuduga?.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
+        // Cari Keputusan bagi Calon Terpilih
+        const getResultForCandidate = (no_kp) => {
+          return resultsList.find(r => String(r.no_kp_calon).trim() === String(no_kp).trim());
+        };
+
         return (
           <div className="p-6 max-w-7xl mx-auto">
             <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center no-print">
               <div>
                 <h1 className="text-2xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
-                <p className="text-slate-400 text-xs mt-1">Sistem Penilaian & Pemantauan SISC+</p>
+                <p className="text-slate-400 text-xs mt-1">Sistem Penilaian & Rumusan SISC+</p>
               </div>
               <span className="bg-blue-600 text-xs font-semibold px-3 py-1 rounded-full uppercase">Portal Admin</span>
             </div>
 
+            {/* Tab Navigasi Admin */}
             <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2 no-print">
-              <button onClick={() => setActiveTab('calon')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
+              <button onClick={() => { setActiveTab('calon'); setSelectedCalonDetail(null); }} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
                 Senarai Calon Berdaftar ({calonList.length})
               </button>
-              <button onClick={() => setActiveTab('keputusan')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'keputusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
+              <button onClick={() => { setActiveTab('keputusan'); setSelectedCalonDetail(null); }} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'keputusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
                 Pemantauan Keputusan Live ({resultsList.length})
+              </button>
+              <button onClick={() => setActiveTab('rumusan')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'rumusan' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
+                📋 Rumusan Slip Individu Peserta
               </button>
             </div>
 
+            {/* TAB 1: SENARAI CALON */}
             {activeTab === 'calon' && (
               <div className="bg-white p-6 rounded border shadow-sm">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b no-print">
@@ -105,25 +116,38 @@
                         <th className="p-2.5">Sesi</th>
                         <th className="p-2.5">Bilik</th>
                         <th className="p-2.5">SME Subjek</th>
+                        <th className="p-2.5 text-center">Tindakan</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCalon.map((c) => (
-                        <tr key={c.no_kp} className="border-b hover:bg-slate-50">
-                          <td className="p-2.5 font-mono">{c.no_kp}</td>
-                          <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
-                          <td className="p-2.5">{c.zon_temuduga}</td>
-                          <td className="p-2.5">{c.sesi || '-'}</td>
-                          <td className="p-2.5">{c.bilik_temuduga}</td>
-                          <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
-                        </tr>
-                      ))}
+                      {filteredCalon.map((c) => {
+                        const res = getResultForCandidate(c.no_kp);
+                        return (
+                          <tr key={c.no_kp} className="border-b hover:bg-slate-50">
+                            <td className="p-2.5 font-mono">{c.no_kp}</td>
+                            <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
+                            <td className="p-2.5">{c.zon_temuduga}</td>
+                            <td className="p-2.5">{c.sesi || '-'}</td>
+                            <td className="p-2.5">{c.bilik_temuduga}</td>
+                            <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
+                            <td className="p-2.5 text-center">
+                              <button 
+                                onClick={() => { setSelectedCalonDetail(c); setActiveTab('rumusan'); }} 
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded text-xs"
+                              >
+                                Lihat Slip
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
 
+            {/* TAB 2: KEPUTUSAN LIVE */}
             {activeTab === 'keputusan' && (
               <div className="bg-white p-6 rounded border shadow-sm">
                 <div className="flex justify-between items-center border-b pb-2 mb-4 no-print">
@@ -164,6 +188,149 @@
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 3: RUMUSAN SLIP INDIVIDU PESERTA */}
+            {activeTab === 'rumusan' && (
+              <div className="bg-white p-6 rounded border shadow-sm">
+                {/* Carian Peserta Untuk Paparan Slip */}
+                <div className="mb-6 p-4 bg-slate-100 rounded border no-print flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="w-full md:w-1/2">
+                    <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Pilih Peserta / Calon SISC+</label>
+                    <select 
+                      className="w-full p-2 border rounded text-xs font-mono"
+                      value={selectedCalonDetail?.no_kp || ''}
+                      onChange={(e) => {
+                        const found = calonList.find(c => c.no_kp === e.target.value);
+                        setSelectedCalonDetail(found || null);
+                      }}
+                    >
+                      <option value="">-- Pilih Peserta Untuk Lihat Slip --</option>
+                      {calonList.map(c => (
+                        <option key={c.no_kp} value={c.no_kp}>{c.no_kp} - {c.nama_penuh} ({c.zon_temuduga})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedCalonDetail && (
+                    <button onClick={() => window.print()} className="bg-blue-700 hover:bg-blue-800 text-white font-bold px-4 py-2 rounded text-xs transition-all flex items-center gap-1">
+                      🖨️ Cetak Slip Markah Individu
+                    </button>
+                  )}
+                </div>
+
+                {/* SLIP PENILAIAN RASMI INDIVIDU PESERTA */}
+                {selectedCalonDetail ? (
+                  (() => {
+                    const res = getResultForCandidate(selectedCalonDetail.no_kp);
+                    return (
+                      <div className="p-6 border rounded-lg bg-white print-area">
+                        {/* Header Slip */}
+                        <div className="text-center border-b-2 border-slate-900 pb-4 mb-6">
+                          <h2 className="text-lg font-extrabold uppercase text-slate-900 tracking-wide">SLIP RUMUSAN PENILAIAN TEMU DUGA JAWATAN SISC+</h2>
+                          <p className="text-xs text-slate-600 font-semibold">Kementerian Pendidikan Malaysia</p>
+                        </div>
+
+                        {/* Profil Peserta */}
+                        <div className="bg-slate-50 p-4 rounded border mb-6 text-xs grid grid-cols-2 gap-3 text-slate-800">
+                          <p><strong>Nama Penuh Peserta:</strong> {selectedCalonDetail.nama_penuh}</p>
+                          <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono font-bold">{selectedCalonDetail.no_kp}</span></p>
+                          <p><strong>Zon Temu Duga:</strong> {selectedCalonDetail.zon_temuduga}</p>
+                          <p><strong>Sesi & Bilik:</strong> {selectedCalonDetail.sesi || '-'} ({selectedCalonDetail.bilik_temuduga})</p>
+                          <p colSpan="2"><strong>Subject Matter Expert (SME):</strong> <span className="bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-bold">{selectedCalonDetail.sme_subjek}</span></p>
+                        </div>
+
+                        {/* Pecahan Skor Domain */}
+                        {res ? (
+                          <div>
+                            <h3 className="font-bold text-xs uppercase mb-2 text-slate-800 border-b pb-1">Pecahan Markah Domain Rubrik Penilaian</h3>
+                            <table className="w-full text-left text-xs border-collapse border mb-6">
+                              <thead>
+                                <tr className="bg-slate-800 text-white uppercase">
+                                  <th className="p-2 border">Domain Penilaian</th>
+                                  <th className="p-2 border text-center">Wajaran (%)</th>
+                                  <th className="p-2 border text-center">Skor Panel (1-5)</th>
+                                  <th className="p-2 border text-center">Markah Sumbangan (%)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="p-2 border font-medium">1. Bimbingan Profesional</td>
+                                  <td className="p-2 border text-center">25%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_bimbingan || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_bimbingan || 0) / 5) * 25).toFixed(2)}%</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2 border font-medium">2. Competency Instruksional</td>
+                                  <td className="p-2 border text-center">20%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_instruksional || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_instruksional || 0) / 5) * 20).toFixed(2)}%</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2 border font-medium">3. Pemikiran Strategik</td>
+                                  <td className="p-2 border text-center">20%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_pemikiran_strategik || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_pemikiran_strategik || 0) / 5) * 20).toFixed(2)}%</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2 border font-medium">4. Analisis Data</td>
+                                  <td className="p-2 border text-center">15%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_analisis_data || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_analisis_data || 0) / 5) * 15).toFixed(2)}%</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2 border font-medium">5. Interpersonal</td>
+                                  <td className="p-2 border text-center">10%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_interpersonal || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_interpersonal || 0) / 5) * 10).toFixed(2)}%</td>
+                                </tr>
+                                <tr>
+                                  <td className="p-2 border font-medium">6. Evidens Profesional</td>
+                                  <td className="p-2 border text-center">10%</td>
+                                  <td className="p-2 border text-center font-bold">{res.skor_evidens || 0}</td>
+                                  <td className="p-2 border text-center font-bold text-blue-700">{(((res.skor_evidens || 0) / 5) * 10).toFixed(2)}%</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            {/* Keputusan Keseluruhan */}
+                            <div className="grid grid-cols-2 gap-4 border p-4 rounded bg-slate-50 mb-6 text-xs">
+                              <div>
+                                <p className="font-bold text-slate-700">Jumlah Markah Keseluruhan:</p>
+                                <p className="text-3xl font-extrabold text-blue-700 mt-1">{res.jumlah_markah}%</p>
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-700">Keputusan Perakuan Panel:</p>
+                                <div className="mt-2">
+                                  {res.status_lulus ? (
+                                    <span className="bg-green-100 text-green-900 border border-green-400 text-sm font-extrabold px-3 py-1 rounded">DIPERAKUKAN</span>
+                                  ) : (
+                                    <span className="bg-red-100 text-red-900 border border-red-400 text-sm font-extrabold px-3 py-1 rounded">TIDAK DIPERAKUKAN</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ulasan & Nama Panel */}
+                            <div className="border p-4 rounded text-xs space-y-2 bg-white">
+                              <p><strong>Ulasan Penemuduga:</strong> {res.ulasan_panel || 'Tiada ulasan dimasukkan.'}</p>
+                              <p><strong>Nama Panel Penemuduga:</strong> <span className="font-bold text-slate-900">{res.nama_panel || 'N/A'}</span></p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-6 bg-amber-50 border border-amber-200 rounded text-center text-amber-800 text-xs font-semibold">
+                            ⚠️ Peserta ini belum dinilai oleh panel penemuduga. Markah akan dipaparkan di sini secara automatik selepas penilaian dihantar.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className="p-8 text-center text-slate-500 text-xs">
+                    Sila pilih nama peserta daripada menu dropdown di atas untuk memaparkan slip markah penilaian lengkap.
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -277,7 +444,7 @@
               </div>
             )}
 
-            {/* Pemilihan Berperingkat: Zon -> Sesi -> Calon */}
+            {/* Pemilihan Berperingkat */}
             <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm no-print">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">1. Pilih Zon</label>
@@ -362,13 +529,11 @@
                   </div>
                 ))}
 
-                {/* Ulasan Panel */}
                 <div className="bg-white p-4 rounded border shadow-sm">
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Ulasan Penemuduga</label>
                   <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan panel..."></textarea>
                 </div>
 
-                {/* RUANG NAMA PANEL PENEMUDUGA */}
                 <div className="bg-white p-4 rounded border shadow-sm border-l-4 border-l-blue-600">
                   <label className="block text-xs font-bold uppercase text-blue-900 mb-1">
                     Nama Panel Penemuduga <span className="text-red-600">*</span>
@@ -383,7 +548,6 @@
                   />
                 </div>
 
-                {/* Pengira Markah & Butang Tindakan */}
                 <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center shadow">
                   <div>
                     <p className="text-xs text-slate-400 font-bold">Jumlah Markah Dikira</p>
