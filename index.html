@@ -13,6 +13,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Babel Compiler -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Style Khas Untuk Cetakan (Print CSS) -->
+    <style>
+      @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; font-size: 11pt; }
+        .print-area { border: none !important; shadow: none !important; padding: 0 !important; }
+      }
+    </style>
   </head>
   <body class="bg-slate-50">
     <div id="root"></div>
@@ -20,7 +29,7 @@
     <script type="text/babel">
       const { useState, useEffect } = React;
 
-      // Konfigurasi Supabase Client dengan Kunci API Rasmi Anda
+      // Konfigurasi Supabase Client
       const SUPABASE_URL = 'https://beyxrxnuuwegkvziglmg.supabase.co';
       const SUPABASE_KEY = 'sb_publishable_Ei-t0rPawbj3j8EpOOdAvQ_lwPz-oKO';
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -33,7 +42,6 @@
         const [calonList, setCalonList] = useState([]);
         const [resultsList, setResultsList] = useState([]);
         const [searchTerm, setSearchTerm] = useState('');
-        const [loading, setLoading] = useState(false);
 
         useEffect(() => {
           fetchCalon();
@@ -58,7 +66,7 @@
 
         return (
           <div className="p-6 max-w-7xl mx-auto">
-            <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center">
+            <div className="bg-slate-900 text-white p-6 rounded-lg shadow mb-6 flex justify-between items-center no-print">
               <div>
                 <h1 className="text-2xl font-bold">Papan Pemuka Pentadbir (Admin)</h1>
                 <p className="text-slate-400 text-xs mt-1">Sistem Penilaian & Pemantauan SISC+</p>
@@ -66,8 +74,7 @@
               <span className="bg-blue-600 text-xs font-semibold px-3 py-1 rounded-full uppercase">Portal Admin</span>
             </div>
 
-            {/* Tab Navigasi Admin */}
-            <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2">
+            <div className="flex border-b mb-6 bg-white rounded-t px-4 pt-2 no-print">
               <button onClick={() => setActiveTab('calon')} className={`py-3 px-6 font-semibold border-b-2 text-sm ${activeTab === 'calon' ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>
                 Senarai Calon Berdaftar ({calonList.length})
               </button>
@@ -78,7 +85,7 @@
 
             {activeTab === 'calon' && (
               <div className="bg-white p-6 rounded border shadow-sm">
-                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b no-print">
                   <h2 className="font-bold text-slate-800">Pangkalan Data Calon SISC+</h2>
                   <input 
                     type="text" 
@@ -101,20 +108,16 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCalon.length === 0 ? (
-                        <tr><td colSpan="6" className="text-center p-4 text-slate-500">Tiada rekod dijumpai.</td></tr>
-                      ) : (
-                        filteredCalon.map((c) => (
-                          <tr key={c.no_kp} className="border-b hover:bg-slate-50">
-                            <td className="p-2.5 font-mono">{c.no_kp}</td>
-                            <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
-                            <td className="p-2.5">{c.zon_temuduga}</td>
-                            <td className="p-2.5">{c.sesi || '-'}</td>
-                            <td className="p-2.5">{c.bilik_temuduga}</td>
-                            <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
-                          </tr>
-                        ))
-                      )}
+                      {filteredCalon.map((c) => (
+                        <tr key={c.no_kp} className="border-b hover:bg-slate-50">
+                          <td className="p-2.5 font-mono">{c.no_kp}</td>
+                          <td className="p-2.5 font-bold text-slate-800">{c.nama_penuh}</td>
+                          <td className="p-2.5">{c.zon_temuduga}</td>
+                          <td className="p-2.5">{c.sesi || '-'}</td>
+                          <td className="p-2.5">{c.bilik_temuduga}</td>
+                          <td className="p-2.5"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">{c.sme_subjek}</span></td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -123,11 +126,17 @@
 
             {activeTab === 'keputusan' && (
               <div className="bg-white p-6 rounded border shadow-sm">
-                <h2 className="font-bold border-b pb-2 mb-4 text-slate-800">Keputusan Penilaian Live Dari Panel</h2>
+                <div className="flex justify-between items-center border-b pb-2 mb-4 no-print">
+                  <h2 className="font-bold text-slate-800">Keputusan Penilaian Live Dari Panel</h2>
+                  <button onClick={() => window.print()} className="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold">
+                    🖨️ Cetak Senarai Keputusan
+                  </button>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-800 text-white uppercase">
+                        <th className="p-2.5">Nama Panel</th>
                         <th className="p-2.5">No. KP Calon</th>
                         <th className="p-2.5">Zon & Bilik</th>
                         <th className="p-2.5 text-center">Jumlah Markah (%)</th>
@@ -136,25 +145,22 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {resultsList.length === 0 ? (
-                        <tr><td colSpan="5" className="text-center p-4 text-slate-500">Belum ada penilaian yang dihantar oleh panel.</td></tr>
-                      ) : (
-                        resultsList.map((r) => (
-                          <tr key={r.id} className="border-b hover:bg-slate-50">
-                            <td className="p-2.5 font-mono font-bold">{r.no_kp_calon}</td>
-                            <td className="p-2.5">{r.zon} ({r.bilik})</td>
-                            <td className="p-2.5 text-center font-bold text-blue-700 text-sm">{r.jumlah_markah}%</td>
-                            <td className="p-2.5 text-center">
-                              {r.status_lulus ? (
-                                <span className="bg-green-100 text-green-800 font-bold px-2.5 py-1 rounded-full border border-green-300">DIPERAKUKAN</span>
-                              ) : (
-                                <span className="bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-full border border-red-300">TIDAK DIPERAKUKAN</span>
-                              )}
-                            </td>
-                            <td className="p-2.5 text-slate-600">{r.ulasan_panel || '-'}</td>
-                          </tr>
-                        ))
-                      )}
+                      {resultsList.map((r) => (
+                        <tr key={r.id} className="border-b hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-800">{r.nama_panel || 'N/A'}</td>
+                          <td className="p-2.5 font-mono font-bold">{r.no_kp_calon}</td>
+                          <td className="p-2.5">{r.zon} ({r.bilik})</td>
+                          <td className="p-2.5 text-center font-bold text-blue-700 text-sm">{r.jumlah_markah}%</td>
+                          <td className="p-2.5 text-center">
+                            {r.status_lulus ? (
+                              <span className="bg-green-100 text-green-800 font-bold px-2.5 py-1 rounded-full border border-green-300">DIPERAKUKAN</span>
+                            ) : (
+                              <span className="bg-red-100 text-red-800 font-bold px-2.5 py-1 rounded-full border border-red-300">TIDAK DIPERAKUKAN</span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-slate-600">{r.ulasan_panel || '-'}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -173,6 +179,7 @@
         const [selectedSesi, setSelectedSesi] = useState('');
         const [selectedKP, setSelectedKP] = useState('');
         const [selectedCalon, setSelectedCalon] = useState(null);
+        const [namaPanel, setNamaPanel] = useState('');
 
         const [scores, setScores] = useState({ 
           skor_bimbingan: 0, 
@@ -230,6 +237,7 @@
         const handleSubmit = async (e) => {
           e.preventDefault();
           if (!selectedCalon) return alert('Pilih calon terlebih dahulu.');
+          if (!namaPanel.trim()) return alert('Sila masukkan Nama Panel Penemuduga.');
           if (Object.values(scores).some(val => val === 0)) return alert('Sila isi kesemua 6 skor domain penilaian.');
 
           setLoading(true);
@@ -237,6 +245,7 @@
           const isPassed = total >= 75 && scores.skor_bimbingan >= 3 && scores.skor_instruksional >= 3 && scores.skor_pemikiran_strategik >= 3 && scores.skor_analisis_data >= 3;
 
           const payload = {
+            nama_panel: namaPanel,
             no_kp_calon: selectedCalon.no_kp,
             zon: selectedCalon.zon_temuduga,
             bilik: selectedCalon.bilik_temuduga,
@@ -250,30 +259,26 @@
           if (error) {
             setMessage({ type: 'error', text: 'Gagal menyimpan: ' + error.message });
           } else {
-            setMessage({ type: 'success', text: 'Penilaian calon berjaya disimpan secara rasmi!' });
-            setScores({ skor_bimbingan: 0, skor_instruksional: 0, skor_pemikiran_strategik: 0, skor_analisis_data: 0, skor_interpersonal: 0, skor_evidens: 0 });
-            setUlasan('');
-            setSelectedCalon(null);
-            setSelectedKP('');
+            setMessage({ type: 'success', text: 'Penilaian calon berjaya disimpan secara rasmi ke dalam pangkalan data!' });
           }
           setLoading(false);
         };
 
         return (
-          <div className="p-6 max-w-4xl mx-auto">
+          <div className="p-6 max-w-4xl mx-auto print-area">
             <div className="bg-blue-900 text-white p-6 rounded-lg shadow mb-6">
               <h1 className="text-xl font-bold">Borang Penilaian Panel Penemuduga</h1>
-              <p className="text-blue-200 text-xs mt-1">Jawatan SISC+</p>
+              <p className="text-blue-200 text-xs mt-1">Jawatan School Improvement Specialist Coaches Plus (SISC+)</p>
             </div>
 
             {message.text && (
-              <div className={`p-4 mb-6 rounded text-sm font-medium ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              <div className={`p-4 mb-6 rounded text-sm font-medium no-print ${message.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                 {message.text}
               </div>
             )}
 
             {/* Pemilihan Berperingkat: Zon -> Sesi -> Calon */}
-            <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm">
+            <div className="bg-white p-6 rounded border mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm no-print">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">1. Pilih Zon</label>
                 <select 
@@ -325,11 +330,11 @@
             {/* Kad Maklumat Terkunci Calon */}
             {selectedCalon && (
               <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-xs text-slate-800 shadow-sm">
-                <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1">Maklumat Terkunci Calon (Read-Only)</h3>
+                <h3 className="font-bold text-blue-900 mb-2 border-b border-blue-200 pb-1 uppercase">Maklumat Calon Ditaksir</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <p><strong>Nama Penuh:</strong> {selectedCalon.nama_penuh}</p>
-                  <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono">{selectedCalon.no_kp}</span></p>
-                  <p><strong>Zon & Sesi:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.sesi})</p>
+                  <p><strong>Nama Penuh Calon:</strong> {selectedCalon.nama_penuh}</p>
+                  <p><strong>No. Kad Pengenalan:</strong> <span className="font-mono font-bold">{selectedCalon.no_kp}</span></p>
+                  <p><strong>Zon & Sesi Temu Duga:</strong> {selectedCalon.zon_temuduga} ({selectedCalon.sesi})</p>
                   <p><strong>Bilik Temu Duga:</strong> {selectedCalon.bilik_temuduga}</p>
                   <p className="md:col-span-2"><strong>Subject Matter Expert (SME):</strong> <span className="bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-bold">{selectedCalon.sme_subjek}</span></p>
                 </div>
@@ -357,19 +362,51 @@
                   </div>
                 ))}
 
+                {/* Ulasan Panel */}
                 <div className="bg-white p-4 rounded border shadow-sm">
-                  <label className="block text-xs font-bold uppercase mb-1">Ulasan Penemuduga</label>
-                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan panel jika ada..."></textarea>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Ulasan Penemuduga</label>
+                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan panel..."></textarea>
                 </div>
 
+                {/* RUANG NAMA PANEL PENEMUDUGA */}
+                <div className="bg-white p-4 rounded border shadow-sm border-l-4 border-l-blue-600">
+                  <label className="block text-xs font-bold uppercase text-blue-900 mb-1">
+                    Nama Panel Penemuduga <span className="text-red-600">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="Masukkan Nama Penuh Anda (Panel Penemuduga)" 
+                    className="w-full p-2 border rounded text-xs font-bold text-slate-800"
+                    value={namaPanel}
+                    onChange={(e) => setNamaPanel(e.target.value)}
+                  />
+                </div>
+
+                {/* Pengira Markah & Butang Tindakan */}
                 <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center shadow">
                   <div>
-                    <p className="text-xs text-slate-400 font-bold">Jumlah Markah</p>
+                    <p className="text-xs text-slate-400 font-bold">Jumlah Markah Dikira</p>
                     <div className="text-2xl font-extrabold text-blue-400">{calculateTotal()}%</div>
                   </div>
-                  <button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded text-xs transition-all">
-                    {loading ? 'Menyimpan...' : 'Simpan & Hantar Markah'}
-                  </button>
+                  
+                  <div className="flex gap-2 no-print">
+                    <button 
+                      type="button" 
+                      onClick={() => window.print()} 
+                      className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2.5 rounded text-xs transition-all flex items-center gap-1"
+                    >
+                      🖨️ Cetak / Simpan PDF
+                    </button>
+
+                    <button 
+                      type="submit" 
+                      disabled={loading} 
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded text-xs transition-all"
+                    >
+                      {loading ? 'Menyimpan...' : 'Simpan & Hantar Markah'}
+                    </button>
+                  </div>
                 </div>
               </form>
             )}
@@ -378,15 +415,14 @@
       }
 
       // ==========================================
-      // 3. UTAMA APP (MEMPUNYAI TOGGLE ADMIN / PANEL)
+      // 3. UTAMA APP
       // ==========================================
       function App() {
-        const [view, setView] = useState('panel'); // Default: 'panel' | Boleh tukar ke 'admin'
+        const [view, setView] = useState('panel');
 
         return (
           <div>
-            {/* Bar Navigasi Atas */}
-            <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6 shadow">
+            <div className="bg-slate-800 text-white p-3 flex justify-between items-center px-6 shadow no-print">
               <span className="font-bold text-sm tracking-wide">SISTEM PENILAIAN SISC+</span>
               <div className="flex gap-2">
                 <button 
@@ -404,7 +440,6 @@
               </div>
             </div>
 
-            {/* Paparan Mengikut Mod Selected */}
             {view === 'admin' ? <AdminDashboard /> : <PanelForm />}
           </div>
         );
