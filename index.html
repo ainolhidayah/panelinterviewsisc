@@ -20,7 +20,7 @@
     <script type="text/babel">
       const { useState, useEffect } = React;
 
-      // Konfigurasi Supabase Client dengan Kunci API Rasmi Anda
+      // Konfigurasi Supabase Client
       const SUPABASE_URL = 'https://beyxrxnuuwegkvziglmg.supabase.co';
       const SUPABASE_KEY = 'sb_publishable_Ei-t0rPawbj3j8EpOOdAvQ_lwPz-oKO';
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -54,32 +54,35 @@
           { id: 'skor_evidens', nama: '6. Evidens Profesional (10%)', wajaran: 10 }
         ];
 
-        // Tarik 220 data calon dari Supabase
+        // Tarik SELURUH data calon dari Supabase (Limit 1000)
         useEffect(() => {
           fetchAllCalon();
         }, []);
 
         const fetchAllCalon = async () => {
-          const { data, error } = await supabase.from('calon').select('*');
+          const { data, error } = await supabase
+            .from('calon')
+            .select('*')
+            .limit(1000); // Menarik seluruh 220+ calon tanpa terpotong limit default
           if (!error && data) setAllCandidates(data);
         };
 
         // Filter Senarai Sesi berdasarkan Zon yang dipilih
         const availableSesi = [...new Set(
           allCandidates
-            .filter(c => c.zon_temuduga === selectedZon)
+            .filter(c => String(c.zon_temuduga).toUpperCase() === String(selectedZon).toUpperCase())
             .map(c => c.sesi)
             .filter(Boolean)
         )].sort();
 
         // Filter Senarai Calon berdasarkan Zon DAN Sesi yang dipilih
         const filteredCalon = allCandidates.filter(
-          c => c.zon_temuduga === selectedZon && c.sesi === selectedSesi
+          c => String(c.zon_temuduga).toUpperCase() === String(selectedZon).toUpperCase() && c.sesi === selectedSesi
         );
 
         const handleSelectKP = (kp) => {
           setSelectedKP(kp);
-          const calonFound = filteredCalon.find(c => c.no_kp === kp);
+          const calonFound = filteredCalon.find(c => String(c.no_kp) === String(kp));
           setSelectedCalon(calonFound || null);
         };
 
@@ -221,7 +224,7 @@
 
                 <div className="bg-white p-4 rounded border shadow-sm">
                   <label className="block text-xs font-bold uppercase mb-1">Ulasan Penemuduga</label>
-                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan ulasan panel jika ada..."></textarea>
+                  <textarea rows="2" className="w-full p-2 border rounded text-xs" value={ulasan} onChange={(e) => setUlasan(e.target.value)} placeholder="Masukkan ulasan panel jika ada..."></textarea>
                 </div>
 
                 <div className="bg-slate-900 text-white p-4 rounded flex justify-between items-center shadow">
